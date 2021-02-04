@@ -1,0 +1,6 @@
+[submodule "src/runtime/vendor/github.com/intel-go/cpuid"]
+	path = src/runtime/vendor/github.com/intel-go/cpuid
+	url = https://github.com/intel-go/cpuid
+[submodule "src/runtime/vendor/src/github.com/kubernetes-incubator/cri-tools"]
+	path = src/runtime/vendor/src/github.com/kubernetes-incubator/cri-tools
+	url = https://github.com/kubernetes-sigs/cri-tools

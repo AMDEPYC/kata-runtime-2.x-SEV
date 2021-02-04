@@ -1,0 +1,7 @@
+**/*.bk
+**/*.orig
+**/*.rej
+**/target
+**/.vscode
+src/agent/src/version.rs
+src/agent/kata-agent.service
