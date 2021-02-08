@@ -125,6 +125,7 @@ type hypervisor struct {
 	RxRateLimiterMaxRate    uint64   `toml:"rx_rate_limiter_max_rate"`
 	TxRateLimiterMaxRate    uint64   `toml:"tx_rate_limiter_max_rate"`
 	EnableAnnotations       []string `toml:"enable_annotations"`
+	MemEncrypt              bool   `toml:"enable_mem_encryption"`
 }
 
 type runtime struct {
@@ -688,6 +689,7 @@ func newQemuHypervisorConfig(h hypervisor) (vc.HypervisorConfig, error) {
 		RxRateLimiterMaxRate:    rxRateLimiterMaxRate,
 		TxRateLimiterMaxRate:    txRateLimiterMaxRate,
 		EnableAnnotations:       h.EnableAnnotations,
+		MemEncrypt:              h.MemEncrypt,
 	}, nil
 }
 

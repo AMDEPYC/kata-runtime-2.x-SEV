@@ -436,6 +436,11 @@ type HypervisorConfig struct {
 
 	// Enable annotations by name
 	EnableAnnotations []string
+
+	// MemEncrypt is used to enable/disable memory encryption when supported
+        // by the architecture
+        MemEncrypt bool
+
 }
 
 // vcpu mapping from vcpu number to thread number

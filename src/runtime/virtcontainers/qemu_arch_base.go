@@ -28,6 +28,13 @@ type qemuArch interface {
 	// disableNestingChecks nesting checks will be ignored
 	disableNestingChecks()
 
+	 // Enables memory encryption for this architecture
+        enableMemEncrypt()
+
+        // Disable memory encryption for this architecture
+        disableMemEncrypt()
+
+
 	// runNested indicates if the hypervisor runs in a nested environment
 	runNested() bool
 
@@ -133,6 +140,10 @@ type qemuArch interface {
 
 	// append vIOMMU device
 	appendIOMMU(devices []govmmQemu.Device) ([]govmmQemu.Device, error)
+
+	 // appendMemEncrypt appends the memory encryption objects
+        appendMemEncrypt(devices []govmmQemu.Device) []govmmQemu.Device
+
 }
 
 type qemuArchBase struct {
@@ -140,6 +151,7 @@ type qemuArchBase struct {
 	qemuExePath          string
 	memoryOffset         uint32
 	nestedRun            bool
+	memEncrypt           bool
 	vhost                bool
 	disableNvdimm        bool
 	dax                  bool
@@ -229,6 +241,14 @@ func (q *qemuArchBase) disableNestingChecks() {
 	q.nestedRun = false
 }
 
+func (q *qemuArchBase) enableMemEncrypt() {
+        q.memEncrypt = true
+}
+
+func (q *qemuArchBase) disableMemEncrypt() {
+        q.memEncrypt = false
+}
+
 func (q *qemuArchBase) runNested() bool {
 	return q.nestedRun
 }
@@ -308,6 +328,7 @@ func (q *qemuArchBase) appendConsole(devices []govmmQemu.Device, path string) ([
 		Driver:        govmmQemu.VirtioSerial,
 		ID:            "serial0",
 		DisableModern: q.nestedRun,
+		IOMMUPlatform: q.memEncrypt,
 	}
 
 	devices = append(devices, serial)
@@ -390,10 +411,11 @@ func (q *qemuArchBase) appendBlockImage(devices []govmmQemu.Device, path string)
 	return devices, nil
 }
 
-func genericSCSIController(enableIOThreads, nestedRun bool) (govmmQemu.SCSIController, *govmmQemu.IOThread) {
+func genericSCSIController(enableIOThreads, nestedRun bool, memEncrypt bool) (govmmQemu.SCSIController, *govmmQemu.IOThread) {
 	scsiController := govmmQemu.SCSIController{
 		ID:            scsiControllerID,
 		DisableModern: nestedRun,
+		IOMMUPlatform: memEncrypt,
 	}
 
 	var t *govmmQemu.IOThread
@@ -412,7 +434,7 @@ func genericSCSIController(enableIOThreads, nestedRun bool) (govmmQemu.SCSIContr
 }
 
 func (q *qemuArchBase) appendSCSIController(devices []govmmQemu.Device, enableIOThreads bool) ([]govmmQemu.Device, *govmmQemu.IOThread, error) {
-	d, t := genericSCSIController(enableIOThreads, q.nestedRun)
+	d, t := genericSCSIController(enableIOThreads, q.nestedRun, q.memEncrypt)
 	devices = append(devices, d)
 	return devices, t, nil
 }
@@ -446,7 +468,7 @@ func (q *qemuArchBase) appendBridges(devices []govmmQemu.Device) []govmmQemu.Dev
 	return devices
 }
 
-func generic9PVolume(volume types.Volume, nestedRun bool) govmmQemu.FSDevice {
+func generic9PVolume(volume types.Volume, nestedRun bool, memEncrypt bool) govmmQemu.FSDevice {
 	devID := fmt.Sprintf("extra-9p-%s", volume.MountTag)
 	if len(devID) > maxDevIDSize {
 		devID = devID[:maxDevIDSize]
@@ -460,12 +482,13 @@ func generic9PVolume(volume types.Volume, nestedRun bool) govmmQemu.FSDevice {
 		MountTag:      volume.MountTag,
 		SecurityModel: govmmQemu.None,
 		DisableModern: nestedRun,
+		IOMMUPlatform: memEncrypt,
 		Multidev:      govmmQemu.Remap,
 	}
 }
 
-func genericAppend9PVolume(devices []govmmQemu.Device, volume types.Volume, nestedRun bool) (govmmQemu.FSDevice, error) {
-	d := generic9PVolume(volume, nestedRun)
+func genericAppend9PVolume(devices []govmmQemu.Device, volume types.Volume, nestedRun bool, memEncrypt bool) (govmmQemu.FSDevice, error) {
+	d := generic9PVolume(volume, nestedRun, memEncrypt)
 	return d, nil
 }
 
@@ -474,7 +497,7 @@ func (q *qemuArchBase) append9PVolume(devices []govmmQemu.Device, volume types.V
 		return devices, nil
 	}
 
-	d, err := genericAppend9PVolume(devices, volume, q.nestedRun)
+	d, err := genericAppend9PVolume(devices, volume, q.nestedRun, q.memEncrypt)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +550,7 @@ func networkModelToQemuType(model NetInterworkingModel) govmmQemu.NetDeviceType 
 	}
 }
 
-func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, index int) (govmmQemu.NetDevice, error) {
+func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, memEncrypt bool, index int) (govmmQemu.NetDevice, error) {
 	var d govmmQemu.NetDevice
 	switch ep := endpoint.(type) {
 	case *VethEndpoint, *BridgedMacvlanEndpoint, *IPVlanEndpoint:
@@ -542,6 +565,7 @@ func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, index int) (govmmQ
 			Script:        "no",
 			VHost:         vhost,
 			DisableModern: nestedRun,
+			IOMMUPlatform: memEncrypt,
 			FDs:           netPair.VMFds,
 			VhostFDs:      netPair.VhostFds,
 		}
@@ -556,6 +580,7 @@ func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, index int) (govmmQ
 			Script:        "no",
 			VHost:         vhost,
 			DisableModern: nestedRun,
+			IOMMUPlatform: memEncrypt,
 			FDs:           ep.VMFds,
 			VhostFDs:      ep.VhostFds,
 		}
@@ -571,6 +596,7 @@ func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, index int) (govmmQ
 			Script:        "no",
 			VHost:         vhost,
 			DisableModern: nestedRun,
+			IOMMUPlatform: memEncrypt,
 			FDs:           netPair.VMFds,
 			VhostFDs:      netPair.VhostFds,
 		}
@@ -582,7 +608,7 @@ func genericNetwork(endpoint Endpoint, vhost, nestedRun bool, index int) (govmmQ
 }
 
 func (q *qemuArchBase) appendNetwork(devices []govmmQemu.Device, endpoint Endpoint) ([]govmmQemu.Device, error) {
-	d, err := genericNetwork(endpoint, q.vhost, q.nestedRun, q.networkIndex)
+	d, err := genericNetwork(endpoint, q.vhost, q.nestedRun, q.memEncrypt, q.networkIndex)
 	if err != nil {
 		return devices, fmt.Errorf("Failed to append network %v", err)
 	}
@@ -591,7 +617,7 @@ func (q *qemuArchBase) appendNetwork(devices []govmmQemu.Device, endpoint Endpoi
 	return devices, nil
 }
 
-func genericBlockDevice(drive config.BlockDrive, nestedRun bool) (govmmQemu.BlockDevice, error) {
+func genericBlockDevice(drive config.BlockDrive, nestedRun bool, memEncrypt bool) (govmmQemu.BlockDevice, error) {
 	if drive.File == "" || drive.ID == "" || drive.Format == "" {
 		return govmmQemu.BlockDevice{}, fmt.Errorf("Empty File, ID or Format for drive %v", drive)
 	}
@@ -608,13 +634,14 @@ func genericBlockDevice(drive config.BlockDrive, nestedRun bool) (govmmQemu.Bloc
 		Format:        govmmQemu.BlockDeviceFormat(drive.Format),
 		Interface:     "none",
 		DisableModern: nestedRun,
+		IOMMUPlatform: memEncrypt,
 		ShareRW:       drive.ShareRW,
 		ReadOnly:      drive.ReadOnly,
 	}, nil
 }
 
 func (q *qemuArchBase) appendBlockDevice(devices []govmmQemu.Device, drive config.BlockDrive) ([]govmmQemu.Device, error) {
-	d, err := genericBlockDevice(drive, q.nestedRun)
+	d, err := genericBlockDevice(drive, q.nestedRun, q.memEncrypt)
 	if err != nil {
 		return devices, fmt.Errorf("Failed to append block device %v", err)
 	}
@@ -788,3 +815,8 @@ func (q *qemuArchBase) appendIOMMU(devices []govmmQemu.Device) ([]govmmQemu.Devi
 		return devices, fmt.Errorf("Machine Type %s does not support vIOMMU", q.qemuMachine.Type)
 	}
 }
+
+func (q *qemuArchBase) appendMemEncrypt(devices []govmmQemu.Device) []govmmQemu.Device {
+        return devices
+}
+

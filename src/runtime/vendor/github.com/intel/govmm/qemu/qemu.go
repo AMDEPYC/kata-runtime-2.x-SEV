@@ -401,6 +401,10 @@ type FSDevice struct {
 	// Multidev is the filesystem behaviour to deal
 	// with multiple devices being shared with a 9p export
 	Multidev Virtio9PMultidev
+
+	 // IOMMUPlatform indicates whether or not IOVA translation is required
+        IOMMUPlatform bool
+
 }
 
 // Virtio9PTransport is a map of the virtio-9p device name that corresponds
@@ -435,6 +439,9 @@ func (fsdev FSDevice) QemuParams(config *Config) []string {
 	if fsdev.Transport.isVirtioPCI(config) {
 		deviceParams = append(deviceParams, fmt.Sprintf(",romfile=%s", fsdev.ROMFile))
 	}
+	if fsdev.IOMMUPlatform {
+                deviceParams = append(deviceParams, ",iommu_platform=true")
+        }
 	if fsdev.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
 			deviceParams = append(deviceParams, ",iommu_platform=on")
@@ -753,6 +760,10 @@ type NetDevice struct {
 
 	// Transport is the virtio transport for this device.
 	Transport VirtioTransport
+
+	// IOMMUPlatform indicates whether or not IOVA translation is required
+        IOMMUPlatform bool
+
 }
 
 // VirtioNetTransport is a map of the virtio-net device name that corresponds
@@ -829,6 +840,11 @@ func (netdev NetDevice) QemuDeviceParams(config *Config) []string {
 	if s := netdev.Transport.disableModern(config, netdev.DisableModern); s != "" {
 		deviceParams = append(deviceParams, fmt.Sprintf(",%s", s))
 	}
+
+	if netdev.IOMMUPlatform {
+                deviceParams = append(deviceParams, ",iommu_platform=true")
+        }
+
 
 	if len(netdev.FDs) > 0 {
 		// Note: We are appending to the device params here
@@ -947,6 +963,9 @@ type SerialDevice struct {
 
 	// MaxPorts is the maximum number of ports for this device.
 	MaxPorts uint
+
+	// IommuPlatform indicates whether or not IOVA translation is required
+        IOMMUPlatform bool
 }
 
 // Valid returns true if the SerialDevice structure is valid and complete.
@@ -981,6 +1000,10 @@ func (dev SerialDevice) QemuParams(config *Config) []string {
 		}
 		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", dev.DevNo))
 	}
+
+	if dev.IOMMUPlatform == true {
+                deviceParams = append(deviceParams, ",iommu_platform=true")
+        }
 
 	qemuParams = append(qemuParams, "-device")
 	qemuParams = append(qemuParams, strings.Join(deviceParams, ""))
@@ -1061,6 +1084,9 @@ type BlockDevice struct {
 
 	// Transport is the virtio transport for this device.
 	Transport VirtioTransport
+
+	 // Require IOVA translation for this device
+        IOMMUPlatform bool
 }
 
 // VirtioBlockTransport is a map of the virtio-blk device name that corresponds
@@ -1110,6 +1136,10 @@ func (blkdev BlockDevice) QemuParams(config *Config) []string {
 	if blkdev.ShareRW {
 		deviceParams = append(deviceParams, fmt.Sprintf(",share-rw=on"))
 	}
+
+	if blkdev.IOMMUPlatform == true {
+                deviceParams = append(deviceParams, ",iommu_platform=true")
+        }
 
 	blkParams = append(blkParams, fmt.Sprintf("id=%s", blkdev.ID))
 	blkParams = append(blkParams, fmt.Sprintf(",file=%s", blkdev.File))
@@ -1531,6 +1561,9 @@ type SCSIController struct {
 
 	// Transport is the virtio transport for this device.
 	Transport VirtioTransport
+
+	// IommuPlatform indicates whether or not IOVA translation is required
+        IOMMUPlatform bool
 }
 
 // SCSIControllerTransport is a map of the virtio-scsi device name that
@@ -1575,6 +1608,10 @@ func (scsiCon SCSIController) QemuParams(config *Config) []string {
 		}
 		devParams = append(devParams, fmt.Sprintf("devno=%s", scsiCon.DevNo))
 	}
+
+	if scsiCon.IOMMUPlatform {
+                devParams = append(devParams, fmt.Sprintf("iommu_platform=true"))
+        }
 
 	qemuParams = append(qemuParams, "-device")
 	qemuParams = append(qemuParams, strings.Join(devParams, ","))
@@ -2179,6 +2216,9 @@ type Knobs struct {
 
 	// IOMMUPlatform will enable IOMMU for supported devices
 	IOMMUPlatform bool
+
+	// MemEncrypt will enable memory encryption
+        MemEncrypt bool
 }
 
 // IOThread allows IO to be performed on a separate thread.
