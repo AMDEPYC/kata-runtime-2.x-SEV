@@ -275,24 +275,23 @@ func (object Object) Valid() bool {
 
 // QemuParams returns the qemu parameters built out of this Object device.
 func (object Object) QemuParams(config *Config) []string {
-	var objectParams []string
-	var deviceParams []string
-	var qemuParams []string
-	var machineParams []string
+        var objectParams []string
+        var deviceParams []string
+        var machineParams []string
+        var qemuParams []string
 
-	deviceParams = append(deviceParams, string(object.Driver))
-	deviceParams = append(deviceParams, fmt.Sprintf(",id=%s", object.DeviceID))
+        switch object.Type {
+        case MemoryBackendFile:
+                deviceParams = append(deviceParams, string(object.Driver))
+                deviceParams = append(deviceParams, fmt.Sprintf(",id=%s", object.DeviceID))
+                deviceParams = append(deviceParams, fmt.Sprintf(",memdev=%s", object.ID))
 
-	switch object.Type {
-	case MemoryBackendFile:
-		objectParams = append(objectParams, string(object.Type))
-		objectParams = append(objectParams, fmt.Sprintf(",id=%s", object.ID))
-		objectParams = append(objectParams, fmt.Sprintf(",mem-path=%s", object.MemPath))
-		objectParams = append(objectParams, fmt.Sprintf(",size=%d", object.Size))
+                objectParams = append(objectParams, string(object.Type))
+                objectParams = append(objectParams, fmt.Sprintf(",id=%s", object.ID))
+                objectParams = append(objectParams, fmt.Sprintf(",mem-path=%s", object.MemPath))
+                objectParams = append(objectParams, fmt.Sprintf(",size=%d", object.Size))
 
-		deviceParams = append(deviceParams, fmt.Sprintf(",memdev=%s", object.ID))
-
-	case SevGuest:
+        case SevGuest:
                 ID := fmt.Sprintf(",id=%s", object.ID)
                 CBitPos := fmt.Sprintf(",cbitpos=%d", cpuid.MemEncrypt.CBitPosition)
                 ReducedPhysBits := fmt.Sprintf(",reduced-phys-bits=%d", cpuid.MemEncrypt.PhysAddrReduction)
@@ -304,19 +303,26 @@ func (object Object) QemuParams(config *Config) []string {
                 objectParams = append(objectParams, ReducedPhysBits)
 
                 machineParams = append(machineParams, MemoryEncryption)
+        }
 
-	}
-	 
-	
+        if len(deviceParams) > 0 {
+                qemuParams = append(qemuParams, "-device")
+                qemuParams = append(qemuParams, strings.Join(deviceParams, ""))
+        }
 
-	qemuParams = append(qemuParams, "-device")
-	qemuParams = append(qemuParams, strings.Join(deviceParams, ""))
+        if len(objectParams) > 0 {
+                qemuParams = append(qemuParams, "-object")
+                qemuParams = append(qemuParams, strings.Join(objectParams, ""))
+        }
 
-	qemuParams = append(qemuParams, "-object")
-	qemuParams = append(qemuParams, strings.Join(objectParams, ""))
+        if len(machineParams) > 0 {
+                qemuParams = append(qemuParams, "-machine")
+                qemuParams = append(qemuParams, strings.Join(machineParams, ""))
+        }
 
-	return qemuParams
+        return qemuParams
 }
+
 
 // Virtio9PMultidev filesystem behaviour to deal
 // with multiple devices being shared with a 9p export.
@@ -431,22 +437,25 @@ func (fsdev FSDevice) QemuParams(config *Config) []string {
 	var qemuParams []string
 
 	deviceParams = append(deviceParams, fsdev.deviceName(config))
-	if s := fsdev.Transport.disableModern(config, fsdev.DisableModern); s != "" {
-		deviceParams = append(deviceParams, fmt.Sprintf(",%s", s))
-	}
-	deviceParams = append(deviceParams, fmt.Sprintf(",fsdev=%s", fsdev.ID))
-	deviceParams = append(deviceParams, fmt.Sprintf(",mount_tag=%s", fsdev.MountTag))
-	if fsdev.Transport.isVirtioPCI(config) {
-		deviceParams = append(deviceParams, fmt.Sprintf(",romfile=%s", fsdev.ROMFile))
-	}
-	if fsdev.IOMMUPlatform {
-                deviceParams = append(deviceParams, ",iommu_platform=true")
+        if s := fsdev.Transport.disableModern(config, fsdev.DisableModern); s != "" {
+                deviceParams = append(deviceParams, fmt.Sprintf(",%s", s))
         }
-	if fsdev.Transport.isVirtioCCW(config) {
-		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
-		}
-		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", fsdev.DevNo))
+        deviceParams = append(deviceParams, fmt.Sprintf(",fsdev=%s", fsdev.ID))
+        deviceParams = append(deviceParams, fmt.Sprintf(",mount_tag=%s", fsdev.MountTag))
+        if fsdev.Transport.isVirtioPCI(config) {
+                deviceParams = append(deviceParams, fmt.Sprintf(",romfile=%s", fsdev.ROMFile))
+        }
+        if fsdev.Transport.isVirtioCCW(config) {
+                if config.Knobs.IOMMUPlatform {
+                        deviceParams = append(deviceParams, ",iommu_platform=on")
+                }
+                deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", fsdev.DevNo))
+        }
+
+	if fsdev.DisableModern {
+                deviceParams = append(deviceParams, ",disable-modern=true")
+        } else {
+                deviceParams = append(deviceParams, ",disable-legacy=on")
 	}
 
 	fsParams = append(fsParams, string(fsdev.FSDriver))
@@ -983,9 +992,17 @@ func (dev SerialDevice) QemuParams(config *Config) []string {
 	var qemuParams []string
 
 	deviceParams = append(deviceParams, dev.deviceName(config))
+
 	if s := dev.Transport.disableModern(config, dev.DisableModern); s != "" {
 		deviceParams = append(deviceParams, fmt.Sprintf(",%s", s))
 	}
+
+	if dev.DisableModern {
+                deviceParams = append(deviceParams, ",disable-modern=true")
+        } else {
+                deviceParams = append(deviceParams, ",disable-legacy=on")
+        }
+
 	deviceParams = append(deviceParams, fmt.Sprintf(",id=%s", dev.ID))
 	if dev.Transport.isVirtioPCI(config) {
 		deviceParams = append(deviceParams, fmt.Sprintf(",romfile=%s", dev.ROMFile))
@@ -1004,6 +1021,8 @@ func (dev SerialDevice) QemuParams(config *Config) []string {
 	if dev.IOMMUPlatform == true {
                 deviceParams = append(deviceParams, ",iommu_platform=true")
         }
+
+	
 
 	qemuParams = append(qemuParams, "-device")
 	qemuParams = append(qemuParams, strings.Join(deviceParams, ""))
@@ -1594,6 +1613,11 @@ func (scsiCon SCSIController) QemuParams(config *Config) []string {
 	}
 	if s := scsiCon.Transport.disableModern(config, scsiCon.DisableModern); s != "" {
 		devParams = append(devParams, s)
+	}
+	if scsiCon.DisableModern {
+                devParams = append(devParams, fmt.Sprintf("disable-modern=true"))
+        } else {
+                devParams = append(devParams, fmt.Sprintf("disable-legacy=on"))
 	}
 	if scsiCon.IOThread != "" {
 		devParams = append(devParams, fmt.Sprintf("iothread=%s", scsiCon.IOThread))
