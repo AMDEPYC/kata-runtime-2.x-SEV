@@ -447,7 +447,7 @@ func (fsdev FSDevice) QemuParams(config *Config) []string {
         }
         if fsdev.Transport.isVirtioCCW(config) {
                 if config.Knobs.IOMMUPlatform {
-                        deviceParams = append(deviceParams, ",iommu_platform=on")
+                        deviceParams = append(deviceParams, ",iommu_platform=true")
                 }
                 deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", fsdev.DevNo))
         }
@@ -457,6 +457,8 @@ func (fsdev FSDevice) QemuParams(config *Config) []string {
         } else {
                 deviceParams = append(deviceParams, ",disable-legacy=on")
 	}
+
+        deviceParams = append(deviceParams, ",iommu_platform=true")
 
 	fsParams = append(fsParams, string(fsdev.FSDriver))
 	fsParams = append(fsParams, fmt.Sprintf(",id=%s", fsdev.ID))
@@ -587,7 +589,7 @@ func (cdev CharDevice) QemuParams(config *Config) []string {
 
 	if cdev.Driver == VirtioSerial && cdev.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
+			deviceParams = append(deviceParams, ",iommu_platform=true")
 		}
 		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", cdev.DevNo))
 	}
@@ -866,7 +868,7 @@ func (netdev NetDevice) QemuDeviceParams(config *Config) []string {
 
 	if netdev.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
+			deviceParams = append(deviceParams, ",iommu_platform=true")
 		}
 		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", netdev.DevNo))
 	}
@@ -1013,7 +1015,7 @@ func (dev SerialDevice) QemuParams(config *Config) []string {
 
 	if dev.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
+			deviceParams = append(deviceParams, ",iommu_platform=true")
 		}
 		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", dev.DevNo))
 	}
@@ -1628,7 +1630,7 @@ func (scsiCon SCSIController) QemuParams(config *Config) []string {
 
 	if scsiCon.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			devParams = append(devParams, ",iommu_platform=on")
+			devParams = append(devParams, ",iommu_platform=true")
 		}
 		devParams = append(devParams, fmt.Sprintf("devno=%s", scsiCon.DevNo))
 	}
@@ -1817,8 +1819,8 @@ func (vsock VSOCKDevice) QemuParams(config *Config) []string {
 
 	if vsock.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
-		}
+                       deviceParams = append(deviceParams, ",iommu_platform=true")
+                }
 		deviceParams = append(deviceParams, fmt.Sprintf(",devno=%s", vsock.DevNo))
 	}
 
@@ -1890,7 +1892,7 @@ func (v RngDevice) QemuParams(config *Config) []string {
 
 	if v.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
-			deviceParams = append(deviceParams, ",iommu_platform=on")
+			deviceParams = append(deviceParams, ",iommu_platform=true")
 		}
 		deviceParams = append(deviceParams, fmt.Sprintf("devno=%s", v.DevNo))
 	}

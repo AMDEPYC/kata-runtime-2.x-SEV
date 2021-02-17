@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/kata-containers/kata-containers/src/runtime/virtcontainers/types"
-
+	
 	govmmQemu "github.com/intel/govmm/qemu"
 )
 
@@ -26,7 +26,7 @@ const (
 
 	defaultQemuMachineType = QemuPC
 
-	defaultQemuMachineOptions = "accel=kvm,kernel_irqchip"
+	defaultQemuMachineOptions = "accel=kvm,kernel_irqchip,nvdimm"
 
 	qmpMigrationWaitTimeout = 5 * time.Second
 )
@@ -38,22 +38,47 @@ var qemuPaths = map[string]string{
 	QemuMicrovm: defaultQemuPath,
 }
 
-var kernelParams = []Param{
-	{"tsc", "reliable"},
-	{"no_timer_check", ""},
-	{"rcupdate.rcu_expedited", "1"},
-	{"i8042.direct", "1"},
-	{"i8042.dumbkbd", "1"},
-	{"i8042.nopnp", "1"},
-	{"i8042.noaux", "1"},
-	{"noreplace-smp", ""},
-	{"reboot", "k"},
-	{"console", "hvc0"},
-	{"console", "hvc1"},
-	{"cryptomgr.notests", ""},
-	{"net.ifnames", "0"},
-	{"pci", "lastbus=0"},
+var kernelRootParams = []Param{
+        {"root", "/dev/pmem0p1"},
+        {"rootflags", "dax,data=ordered,errors=remount-ro rw"},
+        {"rootfstype", "ext4"},
 }
+
+var kernelParams = []Param{
+        {"tsc", "reliable"},
+        {"no_timer_check", ""},
+        {"rcupdate.rcu_expedited", "1"},
+        {"i8042.direct", "1"},
+        {"i8042.dumbkbd", "1"},
+        {"i8042.nopnp", "1"},
+        {"i8042.noaux", "1"},
+        {"noreplace-smp", ""},
+        {"reboot", "k"},
+        {"console", "hvc0"},
+        {"console", "hvc1"},
+        {"iommu", "off"},
+        {"cryptomgr.notests", ""},
+        {"net.ifnames", "0"},
+        {"pci", "lastbus=0"},
+}
+
+
+//var kernelParams = []Param{
+//	{"tsc", "reliable"},
+//	{"no_timer_check", ""},
+//	{"rcupdate.rcu_expedited", "1"},
+//	{"i8042.direct", "1"},
+//	{"i8042.dumbkbd", "1"},
+//	{"i8042.nopnp", "1"},
+//	{"i8042.noaux", "1"},
+//	{"noreplace-smp", ""},
+//	{"reboot", "k"},
+//	{"console", "hvc0"},
+//	{"console", "hvc1"},
+//	{"cryptomgr.notests", ""},
+//	{"net.ifnames", "0"},
+//	{"pci", "lastbus=0"},
+//}
 
 var supportedQemuMachines = []govmmQemu.Machine{
 	{
