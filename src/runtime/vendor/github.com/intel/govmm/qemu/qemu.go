@@ -1827,8 +1827,8 @@ func (vsock VSOCKDevice) QemuParams(config *Config) []string {
 		deviceParams = append(deviceParams, fmt.Sprintf(",romfile=%s", vsock.ROMFile))
 	}
 
-        // deviceParams = append(deviceParams, ",iommu_platform=true")
-        // deviceParams = append(deviceParams, ",iommu_platform=on")
+        deviceParams = append(deviceParams, ",iommu_platform=true")
+        deviceParams = append(deviceParams, ",iommu_platform=on")
 
 	if vsock.Transport.isVirtioCCW(config) {
 		if config.Knobs.IOMMUPlatform {
